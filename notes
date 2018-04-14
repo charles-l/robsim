@@ -1,0 +1,5 @@
+* beacon triangulation
+* have a differential drive robot
+* how many ticks
+* ensure it hits waypoints (5cm tolerance)
+
