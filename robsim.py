@@ -126,31 +126,57 @@ def make_occupancy_map():
 
 ROBOT_RADIUS = 0.25 / 2
 ROBOT_AXLE_WIDTH = 0.25
+MAX_SIMULATION_STEPS = 1000
+WAYPOINT_TOLERANCE = 0.05
+
+def simulate(m, waypoints):
+    """Performs simulation on python module `m`
+       Returns 4 values - (success, seconds, num_waypoints_hit, robot)
+           success - whether the robot hit every waypoint without colliding with a wall
+           seconds - the amount of time it took for the robot to complete the path
+           num_waypoints_hit - how many waypoints were hit before failing or succeeding
+           robot - the robot object for analysis"""
+
+    for x in ['INITIAL_POSE', 'receive_waypoints', 'update']:
+        if x not in dir(m):
+            raise Exception("You need to define " + x + " in your robot file!")
+
+    waypoints_hit = 0
+    m.receive_waypoints(waypoints)
+    r = Robot(np.array(m.INITIAL_POSE), 0.25, ROBOT_RADIUS, 0.5)
+    for i in range(MAX_SIMULATION_STEPS):
+        r.send_command(*m.update())
+        if np.linalg.norm(r.pose[:2] - waypoints[waypoints_hit]) <= WAYPOINT_TOLERANCE:
+            waypoints_hit += 1
+            if waypoints_hit == len(waypoints):
+                print(f"success! (took {i * DT} seconds)")
+                return True, i * DT, waypoints_hit, r
+        if not on_path(r.pose[0:2], robot_radius = ROBOT_RADIUS):
+            print(f"crashed at {r.pose[0:2]} (took {i * DT} seconds)")
+            print(f"hit {waypoints_hit} waypoints out of {len(waypoints)}")
+            return False, i * DT, waypoints_hit, r
+    print("ran out of time")
+    return False, i * DT, waypoints_hit, r
+
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print("USAGE: robsim YOURFILE.py")
         sys.exit(0)
 
-    #np.set_printoptions(formatter={'float': '{: 0.3f}'.format})
+    m = importlib.import_module(sys.argv[1])
 
     plt.figure()
     plt.axis('equal')
     plot_line_map()
+    waypoints = [(1,1), (2,2)]
+    w = np.array(waypoints)
+    plt.plot(w[:,0], w[:,1], 'sr')
 
-    m = importlib.import_module(sys.argv[1])
-    r = Robot(np.array(m.INITIAL_POSE), 0.25, ROBOT_RADIUS, 0.5)
-    for i in range(1000):
-        r.send_command(*m.update())
-        print(on_path(r.pose[0:2], robot_radius = ROBOT_RADIUS))
-        if not on_path(r.pose[0:2], robot_radius = ROBOT_RADIUS):
-            print("crashed at", r.pose[0:2])
-            plt.plot(r.pose[0], r.pose[1], 'xr')
-            break
+    did_succeed, _, _, r = simulate(m, waypoints)
 
+    if not did_succeed:
+        plt.plot(r.pose[0], r.pose[1], 'xr')
     plot_robot_path(r)
     plt.show()
-
-# quarter meter wide robot
-# half meter wide channel
 
