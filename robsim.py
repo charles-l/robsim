@@ -3,6 +3,7 @@ import sys
 import numpy as np
 import importlib
 import matplotlib.pyplot as plt
+import re
 
 DT = 0.5
 
@@ -129,6 +130,15 @@ ROBOT_AXLE_WIDTH = 0.25
 MAX_SIMULATION_STEPS = 1000
 WAYPOINT_TOLERANCE = 0.05
 
+def load_robot_code(fname):
+    """Loads a module file and asserts the the required functions are defined"""
+    m = importlib.import_module(re.sub("\.py", "", fname))
+    for x in ['INITIAL_POSE', 'receive_waypoints', 'update']:
+        if x not in dir(m):
+            raise Exception(f"You need to define " + x + " in your {fname} file!")
+    return m
+
+
 def simulate(m, waypoints):
     """Performs simulation on python module `m`
        Returns 4 values - (success, seconds, num_waypoints_hit, robot)
@@ -136,10 +146,6 @@ def simulate(m, waypoints):
            seconds - the amount of time it took for the robot to complete the path
            num_waypoints_hit - how many waypoints were hit before failing or succeeding
            robot - the robot object for analysis"""
-
-    for x in ['INITIAL_POSE', 'receive_waypoints', 'update']:
-        if x not in dir(m):
-            raise Exception("You need to define " + x + " in your robot file!")
 
     waypoints_hit = 0
     m.receive_waypoints(waypoints)
@@ -159,24 +165,26 @@ def simulate(m, waypoints):
     return False, i * DT, waypoints_hit, r
 
 
+def plot_run(success, waypoints, robot):
+    plt.figure()
+    plt.axis('equal')
+    plot_line_map()
+    w = np.array(waypoints)
+    plt.plot(w[:,0], w[:,1], 'sg')
+    if not did_succeed:
+        plt.plot(r.pose[0], r.pose[1], 'xr')
+    plot_robot_path(r)
+    plt.show()
+
+
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print("USAGE: robsim YOURFILE.py")
         sys.exit(0)
 
-    m = importlib.import_module(sys.argv[1])
-
-    plt.figure()
-    plt.axis('equal')
-    plot_line_map()
+    # do a test run
+    m = load_robot_code(sys.argv[1])
     waypoints = [(1,1), (2,2)]
-    w = np.array(waypoints)
-    plt.plot(w[:,0], w[:,1], 'sr')
-
     did_succeed, _, _, r = simulate(m, waypoints)
-
-    if not did_succeed:
-        plt.plot(r.pose[0], r.pose[1], 'xr')
-    plot_robot_path(r)
-    plt.show()
+    plot_run(did_succeed, waypoints, r)
 
