@@ -165,6 +165,12 @@ def simulate(m, waypoints):
 
 
 def plot_run(success, waypoints, robot, type='line', show_path = True):
+    """Plots the map, waypoints, and robot travel path with matplotlib.
+       success - boolean defining whether the run was a success not
+       waypoints - a list of tuples defining waypoints for the robot to hit
+       robot - the robot object that just completed a run (plots the path of that robot)
+       type - 'line' for line graph or 'occ' for occupancy map. Defaults to 'line'
+       show_path - toggle whether the robot path is shown in the plot or not. Defaults to True."""
     _, ax = plt.subplots()
     plt.axis('equal')
     if type == 'line':
@@ -189,9 +195,9 @@ if __name__ == '__main__':
         print("USAGE: robsim YOURFILE.py")
         sys.exit(0)
 
-    # do a test run
+    # do a dumb test run
     m = load_robot_code(sys.argv[1])
     waypoints = [(1,1), (2,2)]
     did_succeed, _, _, r = simulate(m, waypoints)
-    plot_run(did_succeed, waypoints, r)
+    plot_run(did_succeed, waypoints, r, type='occ')
 

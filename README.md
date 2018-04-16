@@ -10,11 +10,11 @@ Using map:
 
 Implement your robot logic in a separate python file (I'd recommend copying the `robots.py` file and using it as a starting point). To simulate it, run
 
-`./robsim.py yourfile-without-dot-py`
+`./robsim.py your-robot-file.py`
 
 For instance, to run the test robot in `robot.py`, you would run
 
-`./robsim.py robot`
+`./robsim.py robot.py`
 
 # Robot API
 
