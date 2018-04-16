@@ -4,6 +4,8 @@ INITIAL_POSE = np.array([0, 0, np.pi/4])
 
 waypoints_to_hit = []
 
+# the simulator expects this function to be defined
+# it gets called at the beginning of the simulation
 def receive_waypoints(w):
     waypoints_to_hit = w
 

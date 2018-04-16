@@ -64,8 +64,7 @@ def load_map():
 
 def plot_map(M):
     """Plots the map file with the proper orientation"""
-    plt.figure()
-    plt.imshow(M, cmap=plt.cm.gray_r, interpolation='none', origin='upper')
+    plt.imshow(M, cmap=plt.cm.gray, interpolation='none', origin='upper', extent=(-3, 3, -5, 5))
     plt.xlabel('x')
     plt.ylabel('y')
 
@@ -152,7 +151,7 @@ def simulate(m, waypoints):
     r = Robot(np.array(m.INITIAL_POSE), 0.25, ROBOT_RADIUS, 0.5)
     for i in range(MAX_SIMULATION_STEPS):
         r.send_command(*m.update())
-        if np.linalg.norm(r.pose[:2] - waypoints[waypoints_hit]) <= WAYPOINT_TOLERANCE:
+        if np.linalg.norm(r.pose[:2] - waypoints[waypoints_hit]) <= WAYPOINT_TOLERANCE + ROBOT_RADIUS:
             waypoints_hit += 1
             if waypoints_hit == len(waypoints):
                 print(f"success! (took {i * DT} seconds)")
@@ -165,15 +164,23 @@ def simulate(m, waypoints):
     return False, i * DT, waypoints_hit, r
 
 
-def plot_run(success, waypoints, robot):
-    plt.figure()
+def plot_run(success, waypoints, robot, type='line', show_path = True):
+    _, ax = plt.subplots()
     plt.axis('equal')
-    plot_line_map()
+    if type == 'line':
+        plot_line_map()
+    elif type == 'occ':
+        M = load_map()
+        plot_map(M)
     w = np.array(waypoints)
     plt.plot(w[:,0], w[:,1], 'sg')
-    if not did_succeed:
-        plt.plot(r.pose[0], r.pose[1], 'xr')
-    plot_robot_path(r)
+    if did_succeed:
+        c = plt.Circle((r.pose[0], r.pose[1]), ROBOT_RADIUS, color='b')
+    else:
+        c = plt.Circle((r.pose[0], r.pose[1]), ROBOT_RADIUS, color='r')
+    if show_path:
+        plot_robot_path(r)
+    ax.add_artist(c)
     plt.show()
 
 
