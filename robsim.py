@@ -54,7 +54,7 @@ class Robot():
         self.pose = self._fk(l, r)
         self.past_poses.append(self.pose)
 
-    def read_waypoints(self):
+    def read_beacons(self):
         return [np.linalg.norm(self.pose[:2] - x) for x in [(-3, 5), (3, 5), (3, -5), (-3, -5)]]
 
 def plot_robot_path(r):
@@ -156,7 +156,7 @@ def simulate(m, waypoints):
     m.receive_waypoints(waypoints)
     r = Robot(np.array(m.INITIAL_POSE), 0.25, ROBOT_RADIUS, 0.5)
     for i in range(MAX_SIMULATION_STEPS):
-        r.send_command(*m.update(r.read_waypoints()))
+        r.send_command(*m.update(r.read_beacons()))
         if np.linalg.norm(r.pose[:2] - waypoints[waypoints_hit]) <= WAYPOINT_TOLERANCE + ROBOT_RADIUS:
             waypoints_hit += 1
             if waypoints_hit == len(waypoints):
