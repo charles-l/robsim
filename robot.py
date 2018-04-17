@@ -9,6 +9,8 @@ waypoints_to_hit = []
 def receive_waypoints(w):
     waypoints_to_hit = w
 
-def update():
+# waypoints in order clockwise (nw, ne, se, sw)
+def update(waypoints):
+    print(waypoints)
     # implement robot logic here!
     return 0.5, 0.5

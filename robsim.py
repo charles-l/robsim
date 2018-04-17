@@ -11,6 +11,9 @@ cos = np.cos
 sin = np.sin
 pi = np.pi
 
+def normalize_angle(t):
+    return np.arctan2(sin(t), cos(t))
+
 class Robot():
     def __init__(self, pose, axle, wheel_radius, max_speed):
         self.pose = pose
@@ -32,7 +35,7 @@ class Robot():
 
         newpose = self.pose + (delta * DT)
         # convert back to angle within the unit circle
-        newpose[2] = newpose[2] % (2 * pi)
+        newpose[2] = normalize_angle(newpose[2])
         return newpose
 
 
@@ -50,6 +53,9 @@ class Robot():
         l, r = self._scalev(l_wheel_v, r_wheel_v)
         self.pose = self._fk(l, r)
         self.past_poses.append(self.pose)
+
+    def read_waypoints(self):
+        return [np.linalg.norm(self.pose[:2] - x) for x in [(-3, 5), (3, 5), (3, -5), (-3, -5)]]
 
 def plot_robot_path(r):
     """Plots the robot's path using matplot"""
@@ -150,7 +156,7 @@ def simulate(m, waypoints):
     m.receive_waypoints(waypoints)
     r = Robot(np.array(m.INITIAL_POSE), 0.25, ROBOT_RADIUS, 0.5)
     for i in range(MAX_SIMULATION_STEPS):
-        r.send_command(*m.update())
+        r.send_command(*m.update(r.read_waypoints()))
         if np.linalg.norm(r.pose[:2] - waypoints[waypoints_hit]) <= WAYPOINT_TOLERANCE + ROBOT_RADIUS:
             waypoints_hit += 1
             if waypoints_hit == len(waypoints):
