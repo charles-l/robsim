@@ -4,8 +4,18 @@ import numpy as np
 import importlib
 import matplotlib.pyplot as plt
 import re
+import json
 
-DT = 0.5
+with open('simulation_config.json') as f:
+    CONFIG = json.load(f)
+
+DT = CONFIG['dt']
+ROBOT_RADIUS = CONFIG['robot_radius']
+ROBOT_AXLE_WIDTH = CONFIG['robot_axle_width']
+ROBOT_MAX_SPEED = CONFIG['robot_max_speed']
+MAX_SIMULATION_STEPS = CONFIG['max_simulation_steps']
+WAYPOINT_TOLERANCE = CONFIG['waypoint_tolerance']
+PATH_WIDTH = CONFIG['path_width']
 
 cos = np.cos
 sin = np.sin
@@ -74,8 +84,6 @@ def plot_map(M):
     plt.xlabel('x')
     plt.ylabel('y')
 
-PATH_WIDTH = 0.5
-
 def on_path(p, robot_radius = 0):
     def in_arc(xy, r, is_convex):
         v = p - xy
@@ -130,11 +138,6 @@ def make_occupancy_map():
     i = np.array([on_path(c) for c in coords])
     return i.reshape(1000, 600)
 
-ROBOT_RADIUS = 0.25 / 2
-ROBOT_AXLE_WIDTH = 0.25
-MAX_SIMULATION_STEPS = 1000
-WAYPOINT_TOLERANCE = 0.05
-
 def load_robot_code(fname):
     """Loads a module file and asserts the the required functions are defined"""
     m = importlib.import_module(re.sub("\.py", "", fname))
@@ -154,20 +157,21 @@ def simulate(m, waypoints):
 
     waypoints_hit = 0
     m.receive_waypoints(waypoints)
-    r = Robot(np.array(m.INITIAL_POSE), 0.25, ROBOT_RADIUS, 0.5)
+    r = Robot(np.array(m.INITIAL_POSE), ROBOT_AXLE_WIDTH, ROBOT_RADIUS, ROBOT_MAX_SPEED)
     for i in range(MAX_SIMULATION_STEPS):
         r.send_command(*m.update(r.read_beacons()))
+        t = i * DT
         if np.linalg.norm(r.pose[:2] - waypoints[waypoints_hit]) <= WAYPOINT_TOLERANCE + ROBOT_RADIUS:
             waypoints_hit += 1
             if waypoints_hit == len(waypoints):
-                print(f"success! (took {i * DT} seconds)")
-                return True, i * DT, waypoints_hit, r
+                print(f"success! (took {t} seconds)")
+                return True, t, waypoints_hit, r
         if not on_path(r.pose[0:2], robot_radius = ROBOT_RADIUS):
-            print(f"crashed at {r.pose[0:2]} (took {i * DT} seconds)")
+            print(f"crashed at {r.pose[0:2]} (took {t} seconds)")
             print(f"hit {waypoints_hit} waypoints out of {len(waypoints)}")
-            return False, i * DT, waypoints_hit, r
+            return False, t, waypoints_hit, r
     print("ran out of time")
-    return False, i * DT, waypoints_hit, r
+    return False, t, waypoints_hit, r
 
 
 def plot_run(success, waypoints, robot, type='line', show_path = True):
@@ -186,14 +190,20 @@ def plot_run(success, waypoints, robot, type='line', show_path = True):
         plot_map(M)
     w = np.array(waypoints)
     plt.plot(w[:,0], w[:,1], 'sg')
-    if did_succeed:
-        c = plt.Circle((r.pose[0], r.pose[1]), ROBOT_RADIUS, color='b')
+    if success:
+        c = plt.Circle((robot.pose[0], robot.pose[1]), ROBOT_RADIUS, color='b')
     else:
-        c = plt.Circle((r.pose[0], r.pose[1]), ROBOT_RADIUS, color='r')
+        c = plt.Circle((robot.pose[0], robot.pose[1]), ROBOT_RADIUS, color='r')
     if show_path:
-        plot_robot_path(r)
+        plot_robot_path(robot)
     ax.add_artist(c)
     plt.show()
+
+def run_all_routes(m, routes, should_plot = False):
+    for waypoints in routes:
+        did_succeed, _, _, r = simulate(m, waypoints)
+        if not did_succeed or should_plot:
+            plot_run(did_succeed, waypoints, r, type='occ')
 
 
 if __name__ == '__main__':
@@ -201,9 +211,5 @@ if __name__ == '__main__':
         print("USAGE: robsim YOURFILE.py")
         sys.exit(0)
 
-    # do a dumb test run
     m = load_robot_code(sys.argv[1])
-    waypoints = [(1,1), (2,2)]
-    did_succeed, _, _, r = simulate(m, waypoints)
-    plot_run(did_succeed, waypoints, r, type='occ')
-
+    run_all_routes(m, CONFIG['routes'])

@@ -1,0 +1,14 @@
+{
+    "dt": 0.5,
+    "path_width": 0.5,
+    "robot_radius": 0.125,
+    "robot_axle_width": 0.25,
+    "robot_max_speed": 0.5,
+    "max_simulation_steps": 1000,
+    "waypoint_tolerance": 0.05,
+    "routes": [
+        [[1, 1], [2, 2]],
+        [[0, 0], [-3, -3]]
+    ]
+}
+

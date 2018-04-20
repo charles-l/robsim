@@ -11,6 +11,6 @@ def receive_waypoints(w):
 
 # beacons in order clockwise (nw, ne, se, sw)
 def update(beacons):
-    print(beacons)
+    print("beacon readings", beacons)
     # implement robot logic here!
     return 0.5, 0.5
