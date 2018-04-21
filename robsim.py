@@ -68,9 +68,10 @@ class Robot():
         return [np.linalg.norm(self.pose[:2] - x) for x in [(-3, 5), (3, 5), (3, -5), (-3, -5)]]
 
 class NoisyRobot(Robot):
-    def __init__(self, wheel_slip_std, beacon_noise_std, *args):
+    def __init__(self, wheel_slip_std, beacon_noise_std, beacon_drop_dist, *args):
         self.wheel_slip_std = wheel_slip_std
         self.beacon_noise_std = beacon_noise_std
+        self.beacon_drop_dist = beacon_drop_dist
         super().__init__(*args)
 
     def _fk(self, v_lwheel, v_rwheel):
@@ -79,7 +80,12 @@ class NoisyRobot(Robot):
 
     def read_beacons(self):
         r = super().read_beacons()
-        return [np.random.normal(0, self.beacon_noise_std, 2) + x for x in r]
+        def noisify(r):
+            # randomly lose a beacon if it is far enough away
+            if np.abs(np.random.normal(0, r)) > self.beacon_drop_dist:
+                return None
+            return r + np.random.normal(0, self.beacon_noise_std)
+        return [noisify(x) for x in r]
 
 def plot_robot_path(r):
     """Plots the robot's path using matplot"""
@@ -161,7 +167,7 @@ def load_robot_code(fname):
     return m
 
 
-def simulate(m, waypoints, slip_noise = False, beacon_noise = False):
+def simulate(m, waypoints, slip_noise = False, beacon_noise = False, beacon_drop_dist = False):
     """Performs simulation on python module `m`
        Returns 4 values - (success, seconds, num_waypoints_hit, robot)
            success - whether the robot hit every waypoint without colliding with a wall
@@ -172,10 +178,10 @@ def simulate(m, waypoints, slip_noise = False, beacon_noise = False):
     waypoints_hit = 0
     m.init(DT, waypoints)
 
-    if slip_noise or beacon_noise:
-        if not (slip_noise and beacon_noise):
-            raise Exception("Must specify both slip_noise and beacon_noise for robot")
-        r = NoisyRobot(slip_noise, beacon_noise, np.array(m.INITIAL_POSE), ROBOT_AXLE_WIDTH, ROBOT_RADIUS, ROBOT_MAX_SPEED)
+    if slip_noise or beacon_noise or beacon_drop_dist:
+        if not (slip_noise and beacon_noise and beacon_drop_dist):
+            raise Exception("Must specify both slip_noise, beacon_noise and beacon_drop_dist for robot")
+        r = NoisyRobot(slip_noise, beacon_noise, beacon_drop_dist, np.array(m.INITIAL_POSE), ROBOT_AXLE_WIDTH, ROBOT_RADIUS, ROBOT_MAX_SPEED)
     else:
         r = Robot(np.array(m.INITIAL_POSE), ROBOT_AXLE_WIDTH, ROBOT_RADIUS, ROBOT_MAX_SPEED)
 
@@ -221,7 +227,8 @@ def run_all_routes(m, routes, should_plot = False):
     for waypoints in routes:
         wheel_slippage = CONFIG['noise']['use_noise'] and CONFIG['noise']['wheel_slippage'] or False
         beacon_noise = CONFIG['noise']['use_noise'] and CONFIG['noise']['beacon_noise'] or False
-        r = simulate(m, waypoints, wheel_slippage, beacon_noise)
+        beacon_drop_dist = CONFIG['noise']['use_noise'] and CONFIG['noise']['beacon_drop_dist'] or False
+        r = simulate(m, waypoints, wheel_slippage, beacon_noise, beacon_drop_dist)
         results.append(r)
         did_succeed, _, _, robot = r
         if not did_succeed or should_plot:

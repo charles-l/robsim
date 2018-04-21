@@ -9,7 +9,8 @@
     "noise": {
         "use_noise": true,
         "wheel_slippage": 0.2,
-        "beacon_noise": 4
+        "beacon_noise": 4,
+        "beacon_drop_dist": 7
     },
     "routes": [
         [[1, 1], [2, 2]],
