@@ -6,6 +6,11 @@
     "robot_max_speed": 0.5,
     "max_simulation_steps": 1000,
     "waypoint_tolerance": 0.05,
+    "noise": {
+        "use_noise": true,
+        "wheel_slippage": 0.2,
+        "beacon_noise": 4
+    },
     "routes": [
         [[1, 1], [2, 2]],
         [[0, 0], [1, 1], [2, 2]],

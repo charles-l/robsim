@@ -67,6 +67,20 @@ class Robot():
     def read_beacons(self):
         return [np.linalg.norm(self.pose[:2] - x) for x in [(-3, 5), (3, 5), (3, -5), (-3, -5)]]
 
+class NoisyRobot(Robot):
+    def __init__(self, wheel_slip_std, beacon_noise_std, *args):
+        self.wheel_slip_std = wheel_slip_std
+        self.beacon_noise_std = beacon_noise_std
+        super().__init__(*args)
+
+    def _fk(self, v_lwheel, v_rwheel):
+        slip = np.random.normal(0, self.wheel_slip_std, 2)
+        return super()._fk(v_lwheel + slip[0], v_rwheel + slip[1])
+
+    def read_beacons(self):
+        r = super().read_beacons()
+        return [np.random.normal(0, self.beacon_noise_std, 2) + x for x in r]
+
 def plot_robot_path(r):
     """Plots the robot's path using matplot"""
     plt.plot([p[0] for p in r.past_poses], [p[1] for p in r.past_poses], 'k')
@@ -147,7 +161,7 @@ def load_robot_code(fname):
     return m
 
 
-def simulate(m, waypoints):
+def simulate(m, waypoints, slip_noise = False, beacon_noise = False):
     """Performs simulation on python module `m`
        Returns 4 values - (success, seconds, num_waypoints_hit, robot)
            success - whether the robot hit every waypoint without colliding with a wall
@@ -157,7 +171,14 @@ def simulate(m, waypoints):
 
     waypoints_hit = 0
     m.init(DT, waypoints)
-    r = Robot(np.array(m.INITIAL_POSE), ROBOT_AXLE_WIDTH, ROBOT_RADIUS, ROBOT_MAX_SPEED)
+
+    if slip_noise or beacon_noise:
+        if not (slip_noise and beacon_noise):
+            raise Exception("Must specify both slip_noise and beacon_noise for robot")
+        r = NoisyRobot(slip_noise, beacon_noise, np.array(m.INITIAL_POSE), ROBOT_AXLE_WIDTH, ROBOT_RADIUS, ROBOT_MAX_SPEED)
+    else:
+        r = Robot(np.array(m.INITIAL_POSE), ROBOT_AXLE_WIDTH, ROBOT_RADIUS, ROBOT_MAX_SPEED)
+
     for i in range(MAX_SIMULATION_STEPS):
         r.send_command(*m.update(r.read_beacons()))
         t = i * DT
@@ -198,7 +219,9 @@ def plot_run(success, waypoints, robot, type='line', show_path = True):
 def run_all_routes(m, routes, should_plot = False):
     results = []
     for waypoints in routes:
-        r = simulate(m, waypoints)
+        wheel_slippage = CONFIG['noise']['use_noise'] and CONFIG['noise']['wheel_slippage'] or False
+        beacon_noise = CONFIG['noise']['use_noise'] and CONFIG['noise']['beacon_noise'] or False
+        r = simulate(m, waypoints, wheel_slippage, beacon_noise)
         results.append(r)
         did_succeed, _, _, robot = r
         if not did_succeed or should_plot:
