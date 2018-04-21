@@ -164,13 +164,9 @@ def simulate(m, waypoints):
         if np.linalg.norm(r.pose[:2] - waypoints[waypoints_hit]) <= WAYPOINT_TOLERANCE + ROBOT_RADIUS:
             waypoints_hit += 1
             if waypoints_hit == len(waypoints):
-                print(f"success! (took {t} seconds)")
                 return True, t, waypoints_hit, r
         if not on_path(r.pose[0:2], robot_radius = ROBOT_RADIUS):
-            print(f"crashed at {r.pose[0:2]} (took {t} seconds)")
-            print(f"hit {waypoints_hit} waypoints out of {len(waypoints)}")
             return False, t, waypoints_hit, r
-    print("ran out of time")
     return False, t, waypoints_hit, r
 
 
@@ -200,10 +196,20 @@ def plot_run(success, waypoints, robot, type='line', show_path = True):
     plt.show()
 
 def run_all_routes(m, routes, should_plot = False):
+    results = []
     for waypoints in routes:
-        did_succeed, _, _, r = simulate(m, waypoints)
+        r = simulate(m, waypoints)
+        results.append(r)
+        did_succeed, _, _, robot = r
         if not did_succeed or should_plot:
-            plot_run(did_succeed, waypoints, r, type='occ')
+            plot_run(did_succeed, waypoints, robot, type='occ')
+    print('%-8s %4s %5s %14s' % ("", "Run", "Time", "Waypoints hit"))
+    for i, r in enumerate(results):
+        did_succeed, time, num_waypoints_hit, robot = r
+        print('%-8s %4s %4ds %14d' % ((did_succeed and "SUCCESS" or "FAIL"),
+                                        i + 1,
+                                        time,
+                                        num_waypoints_hit))
 
 
 if __name__ == '__main__':
