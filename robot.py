@@ -6,8 +6,8 @@ waypoints_to_hit = []
 
 # the simulator expects this function to be defined
 # it gets called at the beginning of the simulation
-def receive_waypoints(w):
-    waypoints_to_hit = w
+def init(dt, waypoints):
+    waypoints_to_hit = waypoints
 
 # beacons in order clockwise (nw, ne, se, sw)
 def update(beacons):

@@ -141,7 +141,7 @@ def make_occupancy_map():
 def load_robot_code(fname):
     """Loads a module file and asserts the the required functions are defined"""
     m = importlib.import_module(re.sub("\.py", "", fname))
-    for x in ['INITIAL_POSE', 'receive_waypoints', 'update']:
+    for x in ['INITIAL_POSE', 'init', 'update']:
         if x not in dir(m):
             raise Exception(f"You need to define " + x + " in your {fname} file!")
     return m
@@ -156,7 +156,7 @@ def simulate(m, waypoints):
            robot - the robot object for analysis"""
 
     waypoints_hit = 0
-    m.receive_waypoints(waypoints)
+    m.init(DT, waypoints)
     r = Robot(np.array(m.INITIAL_POSE), ROBOT_AXLE_WIDTH, ROBOT_RADIUS, ROBOT_MAX_SPEED)
     for i in range(MAX_SIMULATION_STEPS):
         r.send_command(*m.update(r.read_beacons()))
