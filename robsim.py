@@ -11,6 +11,7 @@ with open('simulation_config.json') as f:
 
 DT = CONFIG['dt']
 ROBOT_RADIUS = CONFIG['robot_radius']
+ROBOT_WHEEL_RADIUS = CONFIG['robot_wheel_radius']
 ROBOT_AXLE_WIDTH = CONFIG['robot_axle_width']
 ROBOT_MAX_SPEED = CONFIG['robot_max_speed']
 MAX_SIMULATION_STEPS = CONFIG['max_simulation_steps']
@@ -65,7 +66,7 @@ class Robot():
         self.past_poses.append(self.pose)
 
     def read_beacons(self):
-        return [np.linalg.norm(self.pose[:2] - x) for x in [(-3, 5), (3, 5), (3, -5), (-3, -5)]]
+        return np.array([np.linalg.norm(self.pose[:2] - x) for x in [(-3, 5), (3, 5), (3, -5), (-3, -5)]])
 
 class NoisyRobot(Robot):
     def __init__(self, wheel_slip_std, beacon_noise_std, beacon_drop_dist, *args):
@@ -79,13 +80,13 @@ class NoisyRobot(Robot):
         return super()._fk(v_lwheel + slip[0], v_rwheel + slip[1])
 
     def read_beacons(self):
-        r = super().read_beacons()
-        def noisify(r):
+        bs = super().read_beacons()
+        def noisify(b):
             # randomly lose a beacon if it is far enough away
-            if np.abs(np.random.normal(0, r)) > self.beacon_drop_dist:
-                return None
-            return r + np.random.normal(0, self.beacon_noise_std)
-        return [noisify(x) for x in r]
+            if np.abs(np.random.normal(0, b)) > self.beacon_drop_dist:
+                return np.nan
+            return b + np.random.normal(0, self.beacon_noise_std)
+        return np.array([noisify(x) for x in bs])
 
 def plot_robot_path(r):
     """Plots the robot's path using matplot"""
@@ -181,9 +182,9 @@ def simulate(m, waypoints, slip_noise = False, beacon_noise = False, beacon_drop
     if slip_noise or beacon_noise or beacon_drop_dist:
         if not (slip_noise and beacon_noise and beacon_drop_dist):
             raise Exception("Must specify both slip_noise, beacon_noise and beacon_drop_dist for robot")
-        r = NoisyRobot(slip_noise, beacon_noise, beacon_drop_dist, np.array(m.INITIAL_POSE), ROBOT_AXLE_WIDTH, ROBOT_RADIUS, ROBOT_MAX_SPEED)
+        r = NoisyRobot(slip_noise, beacon_noise, beacon_drop_dist, np.array(m.INITIAL_POSE), ROBOT_AXLE_WIDTH, ROBOT_WHEEL_RADIUS, ROBOT_MAX_SPEED)
     else:
-        r = Robot(np.array(m.INITIAL_POSE), ROBOT_AXLE_WIDTH, ROBOT_RADIUS, ROBOT_MAX_SPEED)
+        r = Robot(np.array(m.INITIAL_POSE), ROBOT_AXLE_WIDTH, ROBOT_WHEEL_RADIUS, ROBOT_MAX_SPEED)
 
     for i in range(MAX_SIMULATION_STEPS):
         r.send_command(*m.update(r.read_beacons()))
@@ -231,7 +232,7 @@ def run_all_routes(m, routes, should_plot = False):
         r = simulate(m, waypoints, wheel_slippage, beacon_noise, beacon_drop_dist)
         results.append(r)
         did_succeed, _, _, robot = r
-        if not did_succeed or should_plot:
+        if should_plot:
             plot_run(did_succeed, waypoints, robot, type='occ')
     print('%-8s %4s %5s %14s' % ("", "Run", "Time", "Waypoints hit"))
     for i, r in enumerate(results):
@@ -248,4 +249,4 @@ if __name__ == '__main__':
         sys.exit(0)
 
     m = load_robot_code(sys.argv[1])
-    run_all_routes(m, CONFIG['routes'])
+    run_all_routes(m, CONFIG['routes'], should_plot=True)

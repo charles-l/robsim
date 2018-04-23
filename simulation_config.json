@@ -2,20 +2,23 @@
     "dt": 0.5,
     "path_width": 0.5,
     "robot_radius": 0.125,
+    "robot_wheel_radius": 0.125,
     "robot_axle_width": 0.25,
     "robot_max_speed": 0.5,
     "max_simulation_steps": 1000,
     "waypoint_tolerance": 0.05,
     "noise": {
         "use_noise": true,
-        "wheel_slippage": 0.2,
-        "beacon_noise": 4,
+        "wheel_slippage": 0.05,
+        "beacon_noise": 0.25,
         "beacon_drop_dist": 7
     },
     "routes": [
-        [[1, 1], [2, 2]],
-        [[0, 0], [1, 1], [2, 2]],
-        [[0, 0], [-2, -2], [0, 4]]
+        [[0,-4], [0, 0], [0,4]],
+        [[0,-4], [0, 0], [0,4]],
+        [[0,-4], [0, 0], [0,4]],
+        [[0,-4], [0, 0], [0,4]],
+        [[0,-4], [0, 0], [0,4]]
     ]
 }
 
