@@ -177,7 +177,7 @@ def simulate(m, waypoints, slip_noise = False, beacon_noise = False, beacon_drop
            robot - the robot object for analysis"""
 
     waypoints_hit = 0
-    m.init(DT, waypoints)
+    m.init(DT, waypoints, ROBOT_RADIUS, ROBOT_WHEEL_RADIUS, ROBOT_AXLE_WIDTH, ROBOT_MAX_SPEED)
 
     if slip_noise or beacon_noise or beacon_drop_dist:
         if not (slip_noise and beacon_noise and beacon_drop_dist):
@@ -189,7 +189,7 @@ def simulate(m, waypoints, slip_noise = False, beacon_noise = False, beacon_drop
     for i in range(MAX_SIMULATION_STEPS):
         r.send_command(*m.update(r.read_beacons()))
         t = i * DT
-        if np.linalg.norm(r.pose[:2] - waypoints[waypoints_hit]) <= WAYPOINT_TOLERANCE + ROBOT_RADIUS:
+        if np.linalg.norm(r.pose[:2] - waypoints[waypoints_hit]) <= WAYPOINT_TOLERANCE:
             waypoints_hit += 1
             if waypoints_hit == len(waypoints):
                 return True, t, waypoints_hit, r

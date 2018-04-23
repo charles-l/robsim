@@ -9,7 +9,7 @@ waypoints_to_hit = []
 
 # the simulator expects this function to be defined
 # it gets called at the beginning of the simulation
-def init(dt, waypoints):
+def init(dt, waypoints, robot_radius, robot_wheel_radius, robot_axle_width, robot_max_speed):
     global INITIAL_POSE, waypoints_to_hit, timestep
     INITIAL_POSE = np.array([0, -4, np.pi/2])
     waypoints_to_hit = waypoints
