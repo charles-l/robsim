@@ -4,8 +4,19 @@ import numpy as np
 import importlib
 import matplotlib.pyplot as plt
 import re
+import json
 
-DT = 0.5
+with open('simulation_config.json') as f:
+    CONFIG = json.load(f)
+
+DT = CONFIG['dt']
+ROBOT_RADIUS = CONFIG['robot_radius']
+ROBOT_WHEEL_RADIUS = CONFIG['robot_wheel_radius']
+ROBOT_AXLE_WIDTH = CONFIG['robot_axle_width']
+ROBOT_MAX_SPEED = CONFIG['robot_max_speed']
+MAX_SIMULATION_STEPS = CONFIG['max_simulation_steps']
+WAYPOINT_TOLERANCE = CONFIG['waypoint_tolerance']
+PATH_WIDTH = CONFIG['path_width']
 
 cos = np.cos
 sin = np.sin
@@ -55,7 +66,27 @@ class Robot():
         self.past_poses.append(self.pose)
 
     def read_beacons(self):
-        return [np.linalg.norm(self.pose[:2] - x) for x in [(-3, 5), (3, 5), (3, -5), (-3, -5)]]
+        return np.array([np.linalg.norm(self.pose[:2] - x) for x in [(-3, 5), (3, 5), (3, -5), (-3, -5)]])
+
+class NoisyRobot(Robot):
+    def __init__(self, wheel_slip_std, beacon_noise_std, beacon_drop_dist, *args):
+        self.wheel_slip_std = wheel_slip_std
+        self.beacon_noise_std = beacon_noise_std
+        self.beacon_drop_dist = beacon_drop_dist
+        super().__init__(*args)
+
+    def _fk(self, v_lwheel, v_rwheel):
+        slip = np.random.normal(0, self.wheel_slip_std, 2)
+        return super()._fk(v_lwheel + slip[0], v_rwheel + slip[1])
+
+    def read_beacons(self):
+        bs = super().read_beacons()
+        def noisify(b):
+            # randomly lose a beacon if it is far enough away
+            if np.abs(np.random.normal(0, b)) > self.beacon_drop_dist:
+                return np.nan
+            return b + np.random.normal(0, self.beacon_noise_std)
+        return np.array([noisify(x) for x in bs])
 
 def plot_robot_path(r):
     """Plots the robot's path using matplot"""
@@ -73,8 +104,6 @@ def plot_map(M):
     plt.imshow(M, cmap=plt.cm.gray, interpolation='none', origin='upper', extent=(-3, 3, -5, 5))
     plt.xlabel('x')
     plt.ylabel('y')
-
-PATH_WIDTH = 0.5
 
 def on_path(p, robot_radius = 0):
     def in_arc(xy, r, is_convex):
@@ -130,21 +159,16 @@ def make_occupancy_map():
     i = np.array([on_path(c) for c in coords])
     return i.reshape(1000, 600)
 
-ROBOT_RADIUS = 0.25 / 2
-ROBOT_AXLE_WIDTH = 0.25
-MAX_SIMULATION_STEPS = 1000
-WAYPOINT_TOLERANCE = 0.05
-
 def load_robot_code(fname):
     """Loads a module file and asserts the the required functions are defined"""
     m = importlib.import_module(re.sub("\.py", "", fname))
-    for x in ['INITIAL_POSE', 'receive_waypoints', 'update']:
+    for x in ['INITIAL_POSE', 'init', 'update']:
         if x not in dir(m):
             raise Exception(f"You need to define " + x + " in your {fname} file!")
     return m
 
 
-def simulate(m, waypoints):
+def simulate(m, waypoints, slip_noise = False, beacon_noise = False, beacon_drop_dist = False):
     """Performs simulation on python module `m`
        Returns 4 values - (success, seconds, num_waypoints_hit, robot)
            success - whether the robot hit every waypoint without colliding with a wall
@@ -153,21 +177,25 @@ def simulate(m, waypoints):
            robot - the robot object for analysis"""
 
     waypoints_hit = 0
-    m.receive_waypoints(waypoints)
-    r = Robot(np.array(m.INITIAL_POSE), 0.25, ROBOT_RADIUS, 0.5)
+    m.init(DT, waypoints, ROBOT_RADIUS, ROBOT_WHEEL_RADIUS, ROBOT_AXLE_WIDTH, ROBOT_MAX_SPEED)
+
+    if slip_noise or beacon_noise or beacon_drop_dist:
+        if not (slip_noise and beacon_noise and beacon_drop_dist):
+            raise Exception("Must specify both slip_noise, beacon_noise and beacon_drop_dist for robot")
+        r = NoisyRobot(slip_noise, beacon_noise, beacon_drop_dist, np.array(m.INITIAL_POSE), ROBOT_AXLE_WIDTH, ROBOT_WHEEL_RADIUS, ROBOT_MAX_SPEED)
+    else:
+        r = Robot(np.array(m.INITIAL_POSE), ROBOT_AXLE_WIDTH, ROBOT_WHEEL_RADIUS, ROBOT_MAX_SPEED)
+
     for i in range(MAX_SIMULATION_STEPS):
         r.send_command(*m.update(r.read_beacons()))
-        if np.linalg.norm(r.pose[:2] - waypoints[waypoints_hit]) <= WAYPOINT_TOLERANCE + ROBOT_RADIUS:
+        t = i * DT
+        if np.linalg.norm(r.pose[:2] - waypoints[waypoints_hit]) <= WAYPOINT_TOLERANCE:
             waypoints_hit += 1
             if waypoints_hit == len(waypoints):
-                print(f"success! (took {i * DT} seconds)")
-                return True, i * DT, waypoints_hit, r
+                return True, t, waypoints_hit, r
         if not on_path(r.pose[0:2], robot_radius = ROBOT_RADIUS):
-            print(f"crashed at {r.pose[0:2]} (took {i * DT} seconds)")
-            print(f"hit {waypoints_hit} waypoints out of {len(waypoints)}")
-            return False, i * DT, waypoints_hit, r
-    print("ran out of time")
-    return False, i * DT, waypoints_hit, r
+            return False, t, waypoints_hit, r
+    return False, t, waypoints_hit, r
 
 
 def plot_run(success, waypoints, robot, type='line', show_path = True):
@@ -186,14 +214,33 @@ def plot_run(success, waypoints, robot, type='line', show_path = True):
         plot_map(M)
     w = np.array(waypoints)
     plt.plot(w[:,0], w[:,1], 'sg')
-    if did_succeed:
-        c = plt.Circle((r.pose[0], r.pose[1]), ROBOT_RADIUS, color='b')
+    if success:
+        c = plt.Circle((robot.pose[0], robot.pose[1]), ROBOT_RADIUS, color='b')
     else:
-        c = plt.Circle((r.pose[0], r.pose[1]), ROBOT_RADIUS, color='r')
+        c = plt.Circle((robot.pose[0], robot.pose[1]), ROBOT_RADIUS, color='r')
     if show_path:
-        plot_robot_path(r)
+        plot_robot_path(robot)
     ax.add_artist(c)
     plt.show()
+
+def run_all_routes(m, routes, should_plot = False):
+    results = []
+    for waypoints in routes:
+        wheel_slippage = CONFIG['noise']['use_noise'] and CONFIG['noise']['wheel_slippage'] or False
+        beacon_noise = CONFIG['noise']['use_noise'] and CONFIG['noise']['beacon_noise'] or False
+        beacon_drop_dist = CONFIG['noise']['use_noise'] and CONFIG['noise']['beacon_drop_dist'] or False
+        r = simulate(m, waypoints, wheel_slippage, beacon_noise, beacon_drop_dist)
+        results.append(r)
+        did_succeed, _, _, robot = r
+        if should_plot:
+            plot_run(did_succeed, waypoints, robot, type='occ')
+    print('%-8s %4s %5s %14s' % ("", "Run", "Time", "Waypoints hit"))
+    for i, r in enumerate(results):
+        did_succeed, time, num_waypoints_hit, robot = r
+        print('%-8s %4s %4ds %14d' % ((did_succeed and "SUCCESS" or "FAIL"),
+                                        i + 1,
+                                        time,
+                                        num_waypoints_hit))
 
 
 if __name__ == '__main__':
@@ -201,9 +248,5 @@ if __name__ == '__main__':
         print("USAGE: robsim YOURFILE.py")
         sys.exit(0)
 
-    # do a dumb test run
     m = load_robot_code(sys.argv[1])
-    waypoints = [(1,1), (2,2)]
-    did_succeed, _, _, r = simulate(m, waypoints)
-    plot_run(did_succeed, waypoints, r, type='occ')
-
+    run_all_routes(m, CONFIG['routes'], should_plot=True)
