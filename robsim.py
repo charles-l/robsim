@@ -76,7 +76,10 @@ class NoisyRobot(Robot):
         super().__init__(*args)
 
     def _fk(self, v_lwheel, v_rwheel):
-        slip = np.random.normal(0, self.wheel_slip_std, 2)
+        if v_lwheel == 0 and v_rwheel == 0:
+            slip = np.array([0, 0])
+        else:
+            slip = np.random.normal(0, self.wheel_slip_std, 2)
         return super()._fk(v_lwheel + slip[0], v_rwheel + slip[1])
 
     def read_beacons(self):
@@ -177,7 +180,7 @@ def simulate(m, waypoints, slip_noise = False, beacon_noise = False, beacon_drop
            robot - the robot object for analysis"""
 
     waypoints_hit = 0
-    m.init(DT, waypoints, ROBOT_RADIUS, ROBOT_WHEEL_RADIUS, ROBOT_AXLE_WIDTH, ROBOT_MAX_SPEED)
+    m.init(DT, waypoints, ROBOT_RADIUS, ROBOT_WHEEL_RADIUS, ROBOT_AXLE_WIDTH, ROBOT_MAX_SPEED, WAYPOINT_TOLERANCE, PATH_WIDTH)
 
     if slip_noise or beacon_noise or beacon_drop_dist:
         if not (slip_noise and beacon_noise and beacon_drop_dist):

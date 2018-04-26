@@ -1,3 +1,6 @@
+# MK2a
+* include waypoint_tolerance and path width in init parameters
+
 # MK2
 * new config file for changing simulation parameters (`simulation_config.json`)
 * renamed `recive_waypoints` to `init`
