@@ -1,3 +1,6 @@
+# MK2b
+* fixed bug that resulted in a collision when driving around corners
+
 # MK2a
 * include waypoint_tolerance and path width in init parameters
 
