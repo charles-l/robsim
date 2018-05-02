@@ -129,10 +129,15 @@ def on_path(p, robot_radius = 0):
                     return True
         return False
 
-    def in_corner(o, a1, a2):
+    def in_corner(o, a1, a2, flip = False):
         v = p - o
         ang = np.arctan2(v[1], v[0])
-        return a1 <= ang <= a2 and robot_radius <= np.linalg.norm(p - o) < robot_radius + (PATH_WIDTH / 2)
+        is_close = robot_radius <= np.linalg.norm(p - o) < robot_radius + (PATH_WIDTH / 2)
+        if is_close:
+            if flip:
+                return ang < a1 or a2 < ang
+            else:
+                return a1 < ang < a2
 
     b = \
             in_corner(np.array([0.25, -1.75]), -pi, -pi/2) or \
@@ -160,9 +165,9 @@ def on_path(p, robot_radius = 0):
             in_corner(np.array([-1.75, 1.75]), pi/2, pi) or \
             in_corner(np.array([-0.25, 0.10]), -pi/4, 0) or \
             in_corner(np.array([-0.25, -0.60]), 0, 3/4 * pi) or \
-            in_corner(np.array([-1.75, -1.40]), 3/4 * pi, -pi/2) or \
-            in_corner(np.array([-1.40, -1.75]), pi/4, pi/2) or \
-            in_corner(np.array([-1.75, -2.25]), pi/2, pi/2) or \
+            in_corner(np.array([-1.75, -1.40]), -pi, -pi/4) or \
+            in_corner(np.array([-1.40, -1.75]), -pi/2, 3/4 * pi, flip = True) or \
+            in_corner(np.array([-1.75, -2.25]), pi/2, pi) or \
             in_corner(np.array([-0.25, -3.75]), -pi/2, 0) or \
             \
             in_arc(np.array([0, 2]), 2, True) or \
