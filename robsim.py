@@ -4,6 +4,7 @@ import numpy as np
 import importlib
 import matplotlib.pyplot as plt
 import re
+import importlib
 import json
 
 with open('simulation_config.json') as f:
@@ -270,10 +271,11 @@ def plot_run(success, waypoints, robot, type='line', show_path = True):
 
 def run_all_routes(m, routes, should_plot = False):
     results = []
+    wheel_slippage = CONFIG['noise']['use_noise'] and CONFIG['noise']['wheel_slippage'] or False
+    beacon_noise = CONFIG['noise']['use_noise'] and CONFIG['noise']['beacon_noise'] or False
+    beacon_drop_dist = CONFIG['noise']['use_noise'] and CONFIG['noise']['beacon_drop_dist'] or False
     for waypoints in routes:
-        wheel_slippage = CONFIG['noise']['use_noise'] and CONFIG['noise']['wheel_slippage'] or False
-        beacon_noise = CONFIG['noise']['use_noise'] and CONFIG['noise']['beacon_noise'] or False
-        beacon_drop_dist = CONFIG['noise']['use_noise'] and CONFIG['noise']['beacon_drop_dist'] or False
+        importlib.reload(m)
         r = simulate(m, waypoints, wheel_slippage, beacon_noise, beacon_drop_dist)
         results.append(r)
         did_succeed, _, _, robot = r
