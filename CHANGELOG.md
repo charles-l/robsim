@@ -1,3 +1,6 @@
+# MK2c
+* fixed bug that failed to properly reset robot state on multiple trials
+
 # MK2b
 * fixed bug that resulted in a collision when driving around corners
 
